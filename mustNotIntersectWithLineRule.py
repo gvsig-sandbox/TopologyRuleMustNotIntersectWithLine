@@ -13,8 +13,8 @@ from org.gvsig.topology.lib.api import TopologyLocator
 from org.gvsig.topology.lib.spi import AbstractTopologyRule
 
 from deleteLineAction import DeleteLineAction
-# from markLineAction import MarkLineAction
-# from markPointAction import MarkPointAction
+from markLineAction import MarkLineAction
+from markPointAction import MarkPointAction
 
 class MustNotIntersectWithLineRule(AbstractTopologyRule):
     
@@ -25,8 +25,8 @@ class MustNotIntersectWithLineRule(AbstractTopologyRule):
     def __init__(self, plan, factory, tolerance, dataSet1, dataSet2):
         AbstractTopologyRule.__init__(self, plan, factory, tolerance, dataSet1, dataSet2)
         self.addAction(DeleteLineAction())
-        # self.addAction(MarkLineAction())
-        # self.addAction(MarkPointAction())
+        self.addAction(MarkLineAction())
+        self.addAction(MarkPointAction())
     
     def intersects(self, line1, theDataSet2):
         result= [False, []]
@@ -34,8 +34,9 @@ class MustNotIntersectWithLineRule(AbstractTopologyRule):
             for featureReference in theDataSet2.query(line1):
                 feature2 = featureReference.getFeature()
                 line2 = feature2.getDefaultGeometry()
-                if not line1.equals(line2) and line1.intersects(line2):
+                if line1.intersects(line2):
                     result[0] = True
+                    result[1].append(feature2)
         else:
             if self.expression == None:
                 self.expression = ExpressionEvaluatorLocator.getManager().createExpression()
@@ -49,16 +50,14 @@ class MustNotIntersectWithLineRule(AbstractTopologyRule):
                     self.expressionBuilder.constant(False),
                     self.expressionBuilder.ST_Intersection(
                         self.expressionBuilder.geometry(line1),
-                        self.expressionBuilder.ST_Difference(
-                            self.expressionBuilder.column(self.geomName),
-                            self.expressionBuilder.geometry(line1)
-                        )
+                        self.expressionBuilder.column(self.geomName)
                     )
                 ).toString()
             )
-            features2 = theDataSet2.findFirst(self.expression)
+            features2 = theDataSet2.findAll(self.expression)
             for feature2 in features2:
                 result[0] = True
+                result[1].append(feature2)
         return result
     
     def check(self, taskStatus, report, feature1):
@@ -70,38 +69,40 @@ class MustNotIntersectWithLineRule(AbstractTopologyRule):
                 if geometryType1.getType() == geom.LINE or geometryType1.isTypeOf(geom.LINE):
                     result = self.intersects(line1, theDataSet2)
                     if result[0]:
-                        report.addLine(self,
-                            self.getDataSet1(),
-                            None,
-                            line1,
-                            line1,
-                            feature1.getReference(),
-                            None,
-                            -1,
-                            -1,
-                            False,
-                            "The line intersect.",
-                            ""
-                        )
+                        for i in range(0, len(result[1])):
+                            report.addLine(self,
+                                self.getDataSet1(),
+                                self.getDataSet2(),
+                                line1,
+                                line1,
+                                feature1.getReference(),
+                                result[1][i].getReference(), # feature2
+                                -1,
+                                -1,
+                                False,
+                                "The line intersects.",
+                                ""
+                            )
                 else:
                     if geometryType1.getType() == geom.MULTILINE or geometryType1.isTypeOf(geom.MULTILINE):
                         n1 = line1.getPrimitivesNumber()
                         for i in range(0, n1 + 1):
                             result = self.intersects(line1.getCurveAt(i), theDataSet2)
                             if result[0]:
-                                report.addLine(self,
-                                    self.getDataSet1(),
-                                    self.getDataSet2(),
-                                    line1,
-                                    line1,
-                                    feature1.getReference(),
-                                    feature2.getReference(),
-                                    -1,
-                                    -1,
-                                    False,
-                                    "The line intersect.",
-                                    ""
-                                )
+                                for i in range(0, len(result[1])):
+                                    report.addLine(self,
+                                        self.getDataSet1(),
+                                        self.getDataSet2(),
+                                        line1,
+                                        line1,
+                                        feature1.getReference(),
+                                        result[1][i].getReference(), # feature2
+                                        -1,
+                                        -1,
+                                        False,
+                                        "The line intersects.",
+                                        ""
+                                    )
             else:
                 report.addLine(self,
                     self.getDataSet1(),
