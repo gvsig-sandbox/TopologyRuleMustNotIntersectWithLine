@@ -1,0 +1,1 @@
+http://geoservicios.mtop.gub.uy:80/geoserver/rutas_SD/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=rutas_SD:uylcami1g_sd&outputFormat=SHAPE-ZIP
